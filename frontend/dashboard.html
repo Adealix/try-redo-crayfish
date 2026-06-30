@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Crayfish IoT Dashboard</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="wrap">
+<div class="shell">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="mark">◉</div>
+      <div><h1>Crayfish IoT Dashboard</h1><p>RPi · Real-time WebSocket</p></div>
+    </div>
+    <div class="tools">
+      <span class="dot" id="connDot"></span>
+      <span id="connLabel">Offline</span>
+      <span class="sep">|</span>
+      <span id="clock">--:--:--</span>
+    </div>
+  </div>
+
+  <div class="hero">
+    <h2 id="greeting">Good day, Operator!</h2>
+    <div class="sub">Live monitoring — pushed via WebSocket, no polling.</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-icon">🌡️</div>
+      <div class="value" id="tempValue">--</div>
+      <div class="label">Temperature</div>
+      <div class="tag">°C</div>
+    </div>
+    <div class="stat">
+      <div class="stat-icon">⚗️</div>
+      <div class="value" id="phValue">--</div>
+      <div class="label">pH Level</div>
+      <div class="tag">Safe 6.5–7.5</div>
+    </div>
+    <div class="stat">
+      <div class="stat-icon">🌫️</div>
+      <div class="value" id="turbidityValue">--</div>
+      <div class="label">Turbidity</div>
+      <div class="tag">Analog raw</div>
+    </div>
+    <div class="stat">
+      <div class="stat-icon">☀️</div>
+      <div class="value" id="luxValue">--</div>
+      <div class="label">Light</div>
+      <div class="tag">lux</div>
+    </div>
+    <div class="stat">
+      <div class="stat-icon">📡</div>
+      <div class="value" id="distanceValue">--</div>
+      <div class="label">Distance</div>
+      <div class="tag">cm</div>
+    </div>
+    <div class="stat">
+      <div class="stat-icon">❤️</div>
+      <div class="value" id="healthValue">--</div>
+      <div class="label">Health</div>
+      <div class="tag">%</div>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="panel">
+      <div class="panel-hd">
+        <div><div class="panel-title">Sensor Trend</div><div class="panel-sub">pH, temperature, turbidity over time.</div></div>
+        <div class="seg">Live</div>
+      </div>
+      <div class="panel-body">
+        <div class="chart-wrap"><canvas id="sensorChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="panel">
+        <div class="panel-hd">
+          <div><div class="panel-title">Actuators</div><div class="panel-sub">ESP32 relay states via MQTT.</div></div>
+          <div class="badge badge-purple" id="modeBadge">AUTO</div>
+        </div>
+        <div class="panel-body">
+          <div class="act-grid">
+            <div class="act-item"><span>💧 Pump</span><span class="badge" id="pumpBadge">--</span></div>
+            <div class="act-item"><span>💨 Air Pump</span><span class="badge" id="air_pumpBadge">--</span></div>
+            <div class="act-item"><span>❄️ Peltier</span><span class="badge" id="peltierBadge">--</span></div>
+            <div class="act-item"><span>💡 LED</span><span class="badge" id="rgbBadge">--</span></div>
+            <div class="act-item"><span>⚙️ Feeder</span><span class="badge" id="feederBadge">--</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-hd">
+          <div><div class="panel-title">System</div><div class="panel-sub">Connections.</div></div>
+        </div>
+        <div class="panel-body">
+          <div class="meta">
+            <div class="item"><span class="t">MQTT</span><span class="n" id="mqttStatus">--</span></div>
+            <div class="item"><span class="t">Serial</span><span class="n" id="serialStatus">--</span></div>
+            <div class="item"><span class="t">Camera</span><span class="n" id="cameraStatus">--</span></div>
+            <div class="item"><span class="t">Mode</span><span class="n" id="systemMode">--</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/static/script.js"></script>
+</body>
+</html>

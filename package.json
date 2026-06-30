@@ -1,0 +1,18 @@
+{
+  "name": "crayfish-lite",
+  "version": "1.0.0",
+  "description": "Crayfish IoT — Node.js web server + Python backend side-by-side",
+  "main": "server.js",
+  "scripts": {
+    "start": "concurrently --kill-others \"python app.py\" \"node server.js\"",
+    "start:node": "node server.js",
+    "start:python": "python app.py"
+  },
+  "dependencies": {
+    "concurrently": "^9.1.0",
+    "express": "^4.21.0",
+    "http-proxy-middleware": "^3.0.3",
+    "mqtt": "^5.10.0",
+    "socket.io": "^4.7.5"
+  }
+}
