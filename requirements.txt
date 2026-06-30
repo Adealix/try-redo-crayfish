@@ -1,9 +1,7 @@
-picamera2
-ultralytics
-supervision
-pyserial
-inference
 paho-mqtt
 flask
 python-dotenv
 pymongo
+pyserial
+# ── AI / Vision (optional — only if using camera + Roboflow) ─────
+# pip install ultralytics supervision inference picamera2
