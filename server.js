@@ -73,6 +73,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
+app.get("/", (req, res) => res.sendFile("dashboard.html", { root: "frontend" }));
 app.use(express.static("frontend"));
 app.use(express.json());
 
