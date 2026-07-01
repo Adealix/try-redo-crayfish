@@ -32,20 +32,13 @@ function getTimestamp() {
 }
 
 function calcHealth() {
+  // Matches Python helpers.py:compute_health exactly
   let score = 100;
-  if (latest.ph != null) {
-    if (latest.ph < 6.0 || latest.ph > 8.0) score -= 30;
-    else if (latest.ph < 6.5 || latest.ph > 7.5) score -= 15;
-  }
-  if (latest.temp != null) {
-    if (latest.temp < 18 || latest.temp > 32) score -= 30;
-    else if (latest.temp < 22 || latest.temp > 28) score -= 15;
-  }
-  if (latest.turbidity != null) {
-    if (latest.turbidity > 3000) score -= 30;
-    else if (latest.turbidity > 2000) score -= 15;
-  }
-  latest.health = Math.max(0, Math.min(100, score));
+  if (latest.ph != null) score -= Math.abs(latest.ph - 7.0) * 18;
+  else score -= 20;
+  if (latest.temp != null) score -= Math.abs(latest.temp - 27.0) * 10;
+  else score -= 20;
+  latest.health = Math.max(0, Math.min(100, Math.round(score)));
 }
 
 function pushSensorReading(payload) {
@@ -88,6 +81,14 @@ app.use("/actuator_history", createProxyMiddleware({ target: FLASK_URL, changeOr
 app.use("/sms_history", createProxyMiddleware({ target: FLASK_URL, changeOrigin: true }));
 app.use("/latest", createProxyMiddleware({ target: FLASK_URL, changeOrigin: true }));
 app.use("/esp32", createProxyMiddleware({ target: FLASK_URL, changeOrigin: true }));
+// Member pages (proxied to Flask)
+app.use("/dashboard", createProxyMiddleware({ target: FLASK_URL, changeOrigin: true }));
+app.use("/maranan", createProxyMiddleware({ target: FLASK_URL, changeOrigin: true }));
+app.use("/calungsod", createProxyMiddleware({ target: FLASK_URL, changeOrigin: true }));
+app.use("/garcia", createProxyMiddleware({ target: FLASK_URL, changeOrigin: true }));
+app.use("/canta", createProxyMiddleware({ target: FLASK_URL, changeOrigin: true }));
+app.use("/delrosario", createProxyMiddleware({ target: FLASK_URL, changeOrigin: true }));
+app.use("/famini", createProxyMiddleware({ target: FLASK_URL, changeOrigin: true }));
 
 // ── API endpoint (Node.js handles this directly — publishes MQTT) ─────────────
 app.get("/api/data", (req, res) => {
@@ -97,43 +98,98 @@ app.get("/api/data", (req, res) => {
 app.post("/api/control", (req, res) => {
   const data = req.body || {};
   const commands = [];
+  const rejected = [];
 
+  // Matches Python app.py ESP32_ACTUATOR mapping exactly
+  const ACTUATOR_MAP = {
+    pump:     { topic: "crayfish/cmd/pump",     serialKey: "PUMP" },
+    air_pump: { topic: "crayfish/cmd/airpump",  serialKey: "AIR_PUMP" },
+    peltier:  { topic: "crayfish/cmd/cooling",  serialKey: "PELTIER" },
+    rgb:      { topic: "crayfish/cmd/led",      serialKey: "RGB" },
+  };
+
+  const effectiveMode = latest.mode || "AUTO";
+  const manualActive = effectiveMode === "MANUAL";
+
+  // ── Mode ──────────────────────────────────────────────────────────────
   if (data.mode) {
     const mode = String(data.mode).toUpperCase();
     if (["AUTO", "MANUAL"].includes(mode)) {
       latest.mode = mode;
-      for (const act of ["airpump", "pump", "cooling", "led", "feeder"]) {
+      for (const act of ["airpump", "pump", "cooling", "led"]) {
         publish(`crayfish/mode/${act}`, mode);
       }
       commands.push(`MODE=${mode}`);
     }
   }
 
-  const ACTUATOR_MAP = {
-    pump: "crayfish/cmd/pump", air_pump: "crayfish/cmd/airpump",
-    peltier: "crayfish/cmd/cooling", rgb: "crayfish/cmd/led",
-  };
-  for (const [key, topic] of Object.entries(ACTUATOR_MAP)) {
+  // ── Relays (OFF allowed in AUTO for safety; ON/TOGGLE needs MANUAL) ──
+  for (const [key, cfg] of Object.entries(ACTUATOR_MAP)) {
     if (data[key] !== undefined) {
-      const val = data[key] === true ? "ON" : data[key] === false ? "OFF" : String(data[key]).toUpperCase();
-      if (["ON", "OFF"].includes(val)) {
+      const raw = data[key];
+      const val = raw === true ? "ON" : raw === false ? "OFF" : String(raw).toUpperCase();
+
+      if (!manualActive && val !== "OFF") {
+        rejected.push(key);
+        continue;
+      }
+
+      if (val === "ON" || val === "OFF") {
         latest[key] = val;
-        publish(topic, val);
+        publish(cfg.topic, val);
         commands.push(`${key}=${val}`);
       }
     }
   }
 
+  // ── Feeder ────────────────────────────────────────────────────────────
   if (data.feeder === "FEED") {
-    publish("crayfish/cmd/feeder", "FEED");
-    latest.feeder = "FEED";
-    commands.push("feeder=FEED");
+    if (!manualActive) {
+      rejected.push("feeder");
+    } else {
+      publish("crayfish/cmd/feeder", "FEED");
+      commands.push("feeder=FEED");
+    }
   }
 
-  // RGB and GSM — just forward to Flask for MongoDB logging
-  if (data.rgb_color || data.rgb_brightness || data.gsm_alert || data.stepper_rotate) {
-    const FLASK_PORT_CTRL = process.env.FLASK_PORT || 5005;
-    fetch(`http://localhost:${FLASK_PORT_CTRL}/api/control`, {
+  // ── RGB colour (matches Python validation) ────────────────────────────
+  if (data.rgb_color !== undefined) {
+    if (!manualActive) {
+      rejected.push("rgb_color");
+    } else {
+      const colour = String(data.rgb_color).toLowerCase();
+      const valid = ["blue", "cyan", "purple", "white", "red", "green", "yellow"];
+      if (valid.includes(colour)) {
+        latest.rgb_color = colour;
+        publish("crayfish/cmd/rgb_color", colour.toUpperCase());
+        commands.push(`rgb_color=${colour}`);
+      }
+    }
+  }
+
+  // ── RGB brightness (clamped 0–100, matches Python) ───────────────────
+  if (data.rgb_brightness !== undefined) {
+    if (!manualActive) {
+      rejected.push("rgb_brightness");
+    } else {
+      const brightness = Math.max(0, Math.min(100, parseInt(data.rgb_brightness, 10) || 0));
+      latest.rgb_brightness = brightness;
+      publish("crayfish/cmd/rgb_brightness", String(brightness));
+      commands.push(`rgb_brightness=${brightness}`);
+    }
+  }
+
+  // ── GSM alert (not gated by mode — matches Python) ───────────────────
+  if (data.gsm_alert) {
+    latest.gsm_status = "SENDING";
+    commands.push(`GSM_ALERT=${data.gsm_alert}`);
+    publish("crayfish/cmd/gsm_alert", String(data.gsm_alert));
+  }
+
+  // ── Stepper (forward to Flask for camera/detection path) ─────────────
+  if (data.stepper_rotate) {
+    commands.push(`STEPPER_ROTATE ${data.stepper_direction || "CW"} x${data.stepper_rotations || 2}`);
+    fetch(`http://localhost:${FLASK_PORT}/api/control`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     }).catch(() => {});
@@ -141,7 +197,14 @@ app.post("/api/control", (req, res) => {
 
   const snapshot = buildSnapshot();
   io.emit("sensor_update", snapshot);
-  res.json({ status: "ok", sent: commands, state: snapshot });
+
+  const response = { status: "ok", sent: commands, state: snapshot };
+  if (rejected.length > 0) {
+    response.status = commands.length > 0 ? "partial" : "ignored";
+    response.rejected = rejected;
+    response.reason = "System is in AUTO mode — switch to Manual to control actuators.";
+  }
+  res.json(response);
 });
 
 // ── MQTT Client ────────────────────────────────────────────────────────────────
@@ -189,6 +252,7 @@ if (!MQTT_DISABLED) {
       else if (base === "cooling") { data.peltier = s.value; if (s.mode) data.mode = s.mode; }
       else if (base === "led") { data.rgb = s.value; if (s.mode) data.mode = s.mode; }
       else if (base === "feeder") data.feeder = s.value;
+      else if (base === "filter_pump") data.filter_pump = s.value;
       else if (base === "gsm") data.gsm_status = s.value;
     }
 
