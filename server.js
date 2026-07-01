@@ -90,10 +90,8 @@ app.use("/canta", createProxyMiddleware({ target: FLASK_URL, changeOrigin: true 
 app.use("/delrosario", createProxyMiddleware({ target: FLASK_URL, changeOrigin: true }));
 app.use("/famini", createProxyMiddleware({ target: FLASK_URL, changeOrigin: true }));
 
-// ── API endpoint (Node.js handles this directly — publishes MQTT) ─────────────
-app.get("/api/data", (req, res) => {
-  res.json(buildSnapshot());
-});
+// ── API — proxy /api/data to Flask for rich response (detection, history, events) ──
+app.use("/api/data", createProxyMiddleware({ target: FLASK_URL, changeOrigin: true }));
 
 app.post("/api/control", (req, res) => {
   const data = req.body || {};
