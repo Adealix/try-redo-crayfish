@@ -3,5 +3,6 @@ flask
 python-dotenv
 pymongo
 pyserial
+opencv-python-headless
 # ── AI / Vision (optional — only if using camera + Roboflow) ─────
 # pip install ultralytics supervision inference picamera2

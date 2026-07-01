@@ -66,7 +66,14 @@ def init_camera():
 
 
 def camera_worker():
-    if not init_camera():
+    try:
+        if not init_camera():
+            print("[CAMERA] Worker exiting — init_camera() returned False")
+            return
+    except Exception as e:
+        print(f"[CAMERA] CRASH in camera_worker init: {e}")
+        import traceback
+        traceback.print_exc()
         return
 
     frame_time_target = 1.0 / CAMERA_FPS

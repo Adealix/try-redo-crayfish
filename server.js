@@ -71,7 +71,7 @@ app.use(express.static("frontend"));
 app.use(express.json());
 
 // Proxy camera feed to Python Flask server
-app.use("/camera/feed", createProxyMiddleware({ target: FLASK_URL, changeOrigin: true }));
+app.use("/camera/feed", createProxyMiddleware({ target: FLASK_URL, changeOrigin: true, timeout: 0 }));
 app.use("/camera", createProxyMiddleware({ target: FLASK_URL, changeOrigin: true }));
 app.use("/api/detections", createProxyMiddleware({ target: FLASK_URL, changeOrigin: true }));
 app.use("/ngrok", createProxyMiddleware({ target: FLASK_URL, changeOrigin: true }));
