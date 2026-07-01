@@ -100,13 +100,10 @@
   .btn-mode:active { transform:scale(0.97); }
 
   .manual-zone { position:relative; transition:opacity 0.25s ease; }
-  .manual-zone.locked { opacity:0.42; pointer-events:none; }
-  .manual-zone.locked::after {
-    content:"Switch to Manual to control actuators";
-    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-    font-size:12px; font-weight:600; color:#4b5563;
-    background:rgba(244,239,232,0.72); border-radius:14px; z-index:10;
-    pointer-events:none; padding:0 16px; text-align:center;
+  .manual-zone.locked { pointer-events:none; }
+  .manual-zone.locked .ctrl-label::after {
+    content:" (AUTO — states shown, controls disabled)";
+    font-weight:400; text-transform:none; letter-spacing:0; color:#8b5cf6;
   }
 
   .ctrl-label {
@@ -267,4 +264,4 @@
     .colour-grid{grid-template-columns:repeat(4,1fr);}
   }
   @media (max-width:380px) { .stats{grid-template-columns:1fr;} .mini-row{grid-template-columns:1fr;} .act-grid{grid-template-columns:1fr;} .btn-full{grid-column:span 1;} .meta{grid-template-columns:1fr;} .stepper-row{grid-template-columns:1fr;} }
-  @media (prefers-reduced-motion:reduce) { .btn,.btn-mode,.btn-colour,.manual-zone{transition:none); } }
+  @media (prefers-reduced-motion:reduce) { .btn,.btn-mode,.btn-colour,.manual-zone{transition:none;} }
